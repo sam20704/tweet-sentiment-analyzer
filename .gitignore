@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.pyc
+
+# Environment and dependencies
+.env
+*.env
+*.sqlite3
+*.log
+
+# VS Code/settings files
+.vscode/
+*.code-workspace
+
+# __tests__ artifacts
+pytest_cache/
+.pytest_cache/
+coverage.xml
+htmlcov/
+*.cover
+.cache/
+
+# Docker
+*.pid
+*.db
+*.conf
+
+# OS files
+.DS_Store
+Thumbs.db
