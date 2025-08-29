@@ -9,8 +9,9 @@ on:
 
 env:
   REGISTRY: docker.io
-  BACKEND_IMAGE_NAME: ${{ github.repository }}-backend
-  FRONTEND_IMAGE_NAME: ${{ github.repository }}-frontend
+  DOCKERHUB_USERNAME: sameer2074                   # Set your Docker Hub username here explicitly
+  BACKEND_IMAGE_NAME: ${{ env.DOCKERHUB_USERNAME }}/tweet-sentiment-analyzer-backend
+  FRONTEND_IMAGE_NAME: ${{ env.DOCKERHUB_USERNAME }}/tweet-sentiment-analyzer-frontend
 
 jobs:
   test:
@@ -79,7 +80,7 @@ jobs:
         output: 'trivy-results.sarif'
     
     - name: Upload Trivy scan results to GitHub Security tab
-      uses: github/codeql-action/upload-sarif@v3   # Updated to v3 here
+      uses: github/codeql-action/upload-sarif@v3
       if: always()
       with:
         sarif_file: 'trivy-results.sarif'
@@ -107,7 +108,7 @@ jobs:
       id: meta-backend
       uses: docker/metadata-action@v5
       with:
-        images: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE_NAME }}
+        images: ${{ env.BACKEND_IMAGE_NAME }}
         tags: |
           type=ref,event=branch
           type=ref,event=pr
@@ -118,7 +119,7 @@ jobs:
       id: meta-frontend
       uses: docker/metadata-action@v5
       with:
-        images: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_NAME }}
+        images: ${{ env.FRONTEND_IMAGE_NAME }}
         tags: |
           type=ref,event=branch
           type=ref,event=pr
