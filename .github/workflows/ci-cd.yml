@@ -170,18 +170,18 @@ jobs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
     
-    - name: Test deployment with docker-compose
+    - name: Test deployment with docker compose
       run: |
         # Pull the latest images
-        docker-compose pull
+        docker compose pull
         
         # Start services
-        docker-compose up -d
+        docker compose up -d
         
         # Wait for services to be healthy
         echo "Waiting for services to be healthy..."
         timeout 300 bash -c '
-          while ! docker-compose ps | grep -q "healthy"; do
+          while ! docker compose ps | grep -q "healthy"; do
             echo "Waiting for services..."
             sleep 10
           done
@@ -194,7 +194,7 @@ jobs:
         curl -f http://localhost:8501/_stcore/health || exit 1
         
         # Clean up
-        docker-compose down
+        docker compose down
         
         echo "Deployment test successful!"
 
