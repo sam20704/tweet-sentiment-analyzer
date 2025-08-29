@@ -9,9 +9,9 @@ on:
 
 env:
   REGISTRY: docker.io
-  DOCKERHUB_USERNAME: sameer2074                   # Set your Docker Hub username here explicitly
-  BACKEND_IMAGE_NAME: ${{ env.DOCKERHUB_USERNAME }}/tweet-sentiment-analyzer-backend
-  FRONTEND_IMAGE_NAME: ${{ env.DOCKERHUB_USERNAME }}/tweet-sentiment-analyzer-frontend
+  DOCKERHUB_USERNAME: sameer2074
+  BACKEND_IMAGE_NAME: sameer2074/tweet-sentiment-analyzer-backend
+  FRONTEND_IMAGE_NAME: sameer2074/tweet-sentiment-analyzer-frontend
 
 jobs:
   test:
