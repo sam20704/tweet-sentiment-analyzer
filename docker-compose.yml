@@ -1,4 +1,3 @@
-version: "3.8"
 services:
   backend:
     build:
@@ -35,7 +34,7 @@ services:
       backend:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:8501/ > /dev/null 2>&1 || exit 1"]
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8501/_stcore/health || exit 1"]
       interval: 10s
       timeout: 5s
       start_period: 30s
@@ -47,7 +46,3 @@ services:
 networks:
   sentiment-network:
     driver: bridge
-
-volumes:
-  backend_data: {}
-  frontend_data: {}
