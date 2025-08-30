@@ -4,6 +4,7 @@ import json
 import plotly.graph_objects as go
 import time
 from typing import Dict, Any
+import os  # <-- ADDED THIS LINE
 
 # Page configuration
 st.set_page_config(
@@ -13,12 +14,12 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Constants
-BACKEND_URL = "http://backend:8000"  # Docker service name
-# For local development, use: BACKEND_URL = "http://localhost:8000"
+# --- REMOVED THE HARDCODED BACKEND_URL FROM HERE ---
 
 def check_backend_health() -> bool:
     """Check if backend service is healthy"""
+    # Get backend URL from environment variable, with a default for local development
+    BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
     try:
         response = requests.get(f"{BACKEND_URL}/health", timeout=5)
         return response.status_code == 200
@@ -27,6 +28,8 @@ def check_backend_health() -> bool:
 
 def analyze_sentiment(text: str) -> Dict[str, Any]:
     """Send text to backend for sentiment analysis"""
+    # Get backend URL from environment variable, with a default for local development
+    BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
     try:
         payload = {"text": text}
         response = requests.post(

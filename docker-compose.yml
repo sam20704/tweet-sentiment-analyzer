@@ -1,47 +1,42 @@
+version: '3.8'
+
 services:
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    build: ./backend
+    container_name: tweet-sentiment-analyzer-backend-1
     ports:
       - "8000:8000"
-    environment:
-      - PYTHONPATH=/app
-      - ENVIRONMENT=production
-    healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:8000/health || exit 1"]
-      interval: 5s
-      timeout: 3s
-      start_period: 10s
-      retries: 20
-    restart: unless-stopped
     networks:
       - sentiment-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
+    build: ./frontend
+    container_name: tweet-sentiment-analyzer-frontend-1
     ports:
-      - "8501:8501"
+      - "8501:8501" # Streamlit's default port
+    networks:
+      - sentiment-network
     environment:
+      # This is the crucial line that tells the Streamlit container
+      # how to find the backend container on Docker's internal network.
       - BACKEND_URL=http://backend:8000
-      - STREAMLIT_SERVER_ADDRESS=0.0.0.0
-      - STREAMLIT_SERVER_PORT=8501
-      - STREAMLIT_SERVER_ENABLECORS=false
-      - STREAMLIT_SERVER_HEADLESS=true
     depends_on:
       backend:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:8501/_stcore/health || exit 1"]
+      # This is the reliable way to check if Streamlit is running.
+      # We check the main page instead of the unreliable _stcore endpoint.
+      test: ["CMD", "curl", "-f", "http://localhost:8501"]
       interval: 10s
       timeout: 5s
-      start_period: 30s
-      retries: 10
-    restart: unless-stopped
-    networks:
-      - sentiment-network
+      retries: 5
+      start_period: 15s
 
 networks:
   sentiment-network:
