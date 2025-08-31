@@ -1,15 +1,16 @@
-version: '3.8'
+# version: '3.8'   # <--- REMOVED: Obsolete in Docker Compose V2
 
 services:
   db:
     image: postgres:13
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=password
-      - POSTGRES_DB=sentiment_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: sentiment_db
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
+      # Wait until Postgres is ready to accept connections
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
       timeout: 5s
@@ -28,7 +29,7 @@ services:
       db:
         condition: service_healthy
     volumes:
-      - ./backend:/app
+      - ./backend:/app # For local development. Remove for production if not desired.
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 10s
@@ -37,7 +38,9 @@ services:
       start_period: 40s
     networks:
       - app-network
-    command: bash -c "while !</dev/tcp/db/5432; do sleep 1; done; uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
+    command: >
+      bash -c "while ! </dev/tcp/db/5432; do sleep 1; done; 
+      uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
 
   frontend:
     build: ./frontend
@@ -50,7 +53,13 @@ services:
       backend:
         condition: service_healthy
     volumes:
-      - ./frontend:/app
+      - ./frontend:/app # For local development. Remove for production if not desired.
+    healthcheck:
+      # _stcore/health is the best endpoint for Streamlit; fallback to / if needed
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
     networks:
       - app-network
 
