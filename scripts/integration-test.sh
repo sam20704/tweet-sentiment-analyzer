@@ -31,20 +31,23 @@ else
     exit 1
 fi
 
-# Wait for frontend
-echo "Waiting for frontend to be ready..."
-timeout 60s bash -c '
-  until curl -f http://localhost:8501/_stcore/health 2>/dev/null; do
-    echo "Frontend not ready yet..."
+# --- Updated frontend health wait and test below ---
+
+# Wait for frontend (Docker health status, NOT curl)
+echo "Waiting for frontend to be healthy (docker healthcheck)..."
+timeout 120s bash -c '
+  frontend_id=$(docker compose ps -q frontend)
+  while [ "$(docker inspect -f "{{.State.Health.Status}}" "$frontend_id")" != "healthy" ]; do
+    echo "Frontend not healthy yet..."
     sleep 2
   done
 '
-echo "✅ Frontend is ready!"
+echo "✅ Frontend is healthy!"
 
-# Test frontend
-echo "Testing frontend..."
-frontend_response=$(curl -s -w "%{http_code}" http://localhost:8501/_stcore/health)
-if [[ "${frontend_response: -3}" == "200" ]]; then
+# Test frontend (via HTTP GET to /, should return 200 if Streamlit is up)
+echo "Testing frontend response..."
+frontend_http_response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8501/)
+if [[ "$frontend_http_response" == "200" ]]; then
     echo "✅ Frontend health check passed"
 else
     echo "❌ Frontend health check failed"

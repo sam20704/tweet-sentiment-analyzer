@@ -5,7 +5,7 @@ on:
     branches: [ main, develop ]
   pull_request:
     branches: [ main ]
-  workflow_dispatch: # Allow manual trigger
+  workflow_dispatch:
 
 env:
   REGISTRY: docker.io
@@ -22,16 +22,13 @@ jobs:
     strategy:
       matrix:
         python-version: [3.9]
-    
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-    
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
-    
     - name: Cache pip dependencies
       uses: actions/cache@v3
       with:
@@ -39,29 +36,23 @@ jobs:
         key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
         restore-keys: |
           ${{ runner.os }}-pip-
-    
     - name: Install backend dependencies
       run: |
         cd backend
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        # Download NLTK data for tests
         python -c "import nltk; nltk.download('vader_lexicon', quiet=True); nltk.download('punkt', quiet=True)"
-    
     - name: Install test dependencies
       run: pip install pytest pytest-asyncio httpx pytest-cov
-    
     - name: Run backend tests
       run: |
         cd backend
         python -m pytest ../tests/ -v --tb=short --cov=. --cov-report=xml || \
         python -m pytest tests/ -v --tb=short --cov=. --cov-report=xml
-    
     - name: Test backend imports
       run: |
         cd backend
         python -c "import main, models; print('Backend imports successful')"
-    
     - name: Upload coverage reports
       uses: codecov/codecov-action@v3
       if: always()
@@ -69,7 +60,6 @@ jobs:
         file: ./backend/coverage.xml
         flags: backend
         name: backend-coverage
-    
     - name: Check code formatting
       run: |
         pip install black flake8
@@ -80,25 +70,19 @@ jobs:
     runs-on: ubuntu-latest
     needs: test
     timeout-minutes: 20
-    
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-    
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
-    
     - name: Install utilities
       run: sudo apt-get update && sudo apt-get install -y jq curl
-    
     - name: Clean up existing containers
       run: |
         docker compose down --volumes --remove-orphans || true
         docker system prune -f || true
-    
     - name: Create environment files
       run: |
-        # Create .env file with test configurations
         cat > .env << EOF
         POSTGRES_USER=postgres
         POSTGRES_PASSWORD=testpassword
@@ -108,18 +92,13 @@ jobs:
         PYTHONUNBUFFERED=1
         TESTING=true
         EOF
-        
-        # Show env file (without sensitive data in real scenario)
         echo "Environment file created with $(wc -l < .env) variables"
-    
     - name: Build services
       run: docker compose build --pull --no-cache
-    
     - name: Start services
       run: |
         docker compose up -d
         echo "Services started, waiting for health checks..."
-    
     - name: Wait for services to be healthy
       run: |
         # Wait for database
@@ -131,7 +110,7 @@ jobs:
           done
         '
         echo "✅ Database is ready!"
-        
+
         # Wait for backend
         echo "Waiting for backend to be healthy..."
         timeout 60s bash -c '
@@ -141,36 +120,33 @@ jobs:
           done
         '
         echo "✅ Backend is healthy!"
-        
-        # Wait for frontend
-        echo "Waiting for frontend to be ready..."
-        timeout 60s bash -c '
-          until curl -f http://localhost:8501 2>/dev/null | grep -q "streamlit"; do
-            echo "Frontend not ready yet..."
+
+        # Wait for frontend (use Docker health, not curl)
+        echo "Waiting for frontend to be healthy (Docker healthcheck)..."
+        timeout 120s bash -c '
+          frontend_id=$(docker compose ps -q frontend)
+          while [ "$(docker inspect -f "{{.State.Health.Status}}" "$frontend_id")" != "healthy" ]; do
+            echo "Frontend not healthy yet..."
             sleep 2
           done
         '
-        echo "✅ Frontend is ready!"
-    
+        echo "✅ Frontend is healthy!"
     - name: Run integration tests
       run: |
-        # Test backend endpoints
         echo "Testing backend health endpoint..."
         curl -f http://localhost:8000/health || { echo "Health check failed"; exit 1; }
-        
+
         echo "Testing backend analyze endpoint..."
         response=$(curl -s -X POST http://localhost:8000/analyze \
           -H "Content-Type: application/json" \
           -d '{"text":"I love this product!"}')
         echo "Response: $response"
         echo "$response" | jq . || { echo "Invalid JSON response"; exit 1; }
-        
-        # Test frontend is accessible
+
         echo "Testing frontend accessibility..."
         curl -f http://localhost:8501 > /dev/null || { echo "Frontend not accessible"; exit 1; }
-        
+
         echo "✅ All integration tests passed!"
-    
     - name: View logs on failure
       if: failure()
       run: |
@@ -182,7 +158,6 @@ jobs:
         docker compose logs frontend --tail=50
         echo "=== Database Logs ==="
         docker compose logs db --tail=50
-    
     - name: Stop services
       if: always()
       run: |
@@ -192,11 +167,9 @@ jobs:
   security-scan:
     runs-on: ubuntu-latest
     needs: test
-    
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-    
     - name: Run Trivy vulnerability scanner
       uses: aquasecurity/trivy-action@master
       with:
@@ -205,24 +178,19 @@ jobs:
         format: 'sarif'
         output: 'trivy-results.sarif'
         severity: 'CRITICAL,HIGH'
-    
     - name: Upload Trivy scan results to GitHub Security tab
       uses: github/codeql-action/upload-sarif@v3
       if: always()
       with:
         sarif_file: 'trivy-results.sarif'
-    
     - name: Run Trivy on Dockerfiles
       run: |
-        # Install Trivy
         sudo apt-get update
         sudo apt-get install -y wget apt-transport-https gnupg lsb-release
         wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
         echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
         sudo apt-get update
         sudo apt-get install -y trivy
-        
-        # Scan Dockerfiles
         trivy config backend/Dockerfile || echo "::warning::Dockerfile issues found"
         trivy config frontend/Dockerfile || echo "::warning::Dockerfile issues found"
 
@@ -230,23 +198,18 @@ jobs:
     runs-on: ubuntu-latest
     needs: [test, security-scan, integration-test]
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
-    
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-    
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v3
-    
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
-    
     - name: Log in to Docker Hub
       uses: docker/login-action@v3
       with:
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_HUB_LOGIN_TOKEN }}
-    
     - name: Extract backend metadata
       id: meta-backend
       uses: docker/metadata-action@v5
@@ -259,7 +222,6 @@ jobs:
           type=semver,pattern={{major}}.{{minor}}
           type=sha,prefix={{branch}}-
           type=raw,value=latest,enable={{is_default_branch}}
-    
     - name: Extract frontend metadata
       id: meta-frontend
       uses: docker/metadata-action@v5
@@ -272,7 +234,6 @@ jobs:
           type=semver,pattern={{major}}.{{minor}}
           type=sha,prefix={{branch}}-
           type=raw,value=latest,enable={{is_default_branch}}
-    
     - name: Build and push backend image
       uses: docker/build-push-action@v5
       with:
@@ -284,7 +245,6 @@ jobs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
         platforms: linux/amd64,linux/arm64
-    
     - name: Build and push frontend image
       uses: docker/build-push-action@v5
       with:
@@ -296,7 +256,6 @@ jobs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
         platforms: linux/amd64,linux/arm64
-    
     - name: Image digest
       run: |
         echo "Backend image digest: ${{ steps.meta-backend.outputs.digest }}"
@@ -307,11 +266,9 @@ jobs:
     needs: build-and-push
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     environment: production
-    
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-    
     - name: Deploy notification
       run: |
         echo "🚀 Deployment stage reached!"
@@ -326,7 +283,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: [test, security-scan, build-and-push, integration-test]
     if: always()
-    
     steps:
     - name: Check job statuses
       run: |
@@ -335,13 +291,11 @@ jobs:
         echo "- Security Scan: ${{ needs.security-scan.result }}"
         echo "- Integration Test: ${{ needs.integration-test.result }}"
         echo "- Build & Push: ${{ needs.build-and-push.result }}"
-    
     - name: Send success notification
       if: needs.test.result == 'success' && needs.security-scan.result == 'success' && needs.integration-test.result == 'success'
       run: |
         echo "✅ CI/CD Pipeline completed successfully!"
         echo "All tests passed, security scans clean, and images built."
-    
     - name: Send failure notification
       if: needs.test.result == 'failure' || needs.security-scan.result == 'failure' || needs.integration-test.result == 'failure'
       run: |
