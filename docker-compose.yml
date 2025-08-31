@@ -56,7 +56,7 @@ services:
       - ./frontend:/app # For local development. Remove for production if not desired.
     healthcheck:
       # _stcore/health is the best endpoint for Streamlit; fallback to / if needed
-      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8501/"]
       interval: 10s
       timeout: 5s
       retries: 10
