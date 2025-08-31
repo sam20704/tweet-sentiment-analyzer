@@ -364,7 +364,7 @@ Timeout: 10s
         with col_export2:
             # Create CSV format
             csv_data = f"""Text,Sentiment,Confidence,Positive,Negative,Neutral,Compound,Timestamp
-"{tweet_text.replace('"', '""')}",{sentiment},{confidence:.4f},{scores['positive']:.4f},{scores['negative']:.4f},{scores['neutral']:.4f},{scores['compound']:.4f},{export_data['timestamp']}"""
+"{tweet_text.replace('"', '""')}",{sentiment},{confidence:.4f},{scores['pos']:.4f},{scores['neg']:.4f},{scores['neu']:.4f},{scores['compound']:.4f},{export_data['timestamp']}"""
             
             st.download_button(
                 label="📊 Download CSV",
