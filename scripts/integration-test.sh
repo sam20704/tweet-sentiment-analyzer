@@ -3,7 +3,7 @@
 echo "Running integration tests..."
 
 # Start services
-docker-compose up -d
+docker compose up -d
 
 # Wait for services
 sleep 30
@@ -31,6 +31,16 @@ else
     exit 1
 fi
 
+# Wait for frontend
+echo "Waiting for frontend to be ready..."
+timeout 60s bash -c '
+  until curl -f http://localhost:8501/_stcore/health 2>/dev/null; do
+    echo "Frontend not ready yet..."
+    sleep 2
+  done
+'
+echo "✅ Frontend is ready!"
+
 # Test frontend
 echo "Testing frontend..."
 frontend_response=$(curl -s -w "%{http_code}" http://localhost:8501/_stcore/health)
@@ -44,4 +54,4 @@ fi
 echo "✅ All integration tests passed!"
 
 # Cleanup
-docker-compose down
+docker compose down
