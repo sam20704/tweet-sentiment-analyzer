@@ -1,34 +1,36 @@
-# Use Python 3.9 slim image
 FROM python:3.9-slim
 
-# Set working directory
 WORKDIR /app
 
 # Set environment variables
-ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/app
+ENV TZ=UTC
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     gcc \
     curl \
+    postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first for better caching
-COPY requirements.txt .
+# Set timezone
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
-# Install Python dependencies
+# Copy and install requirements first (for better caching)
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+
+# Download NLTK data during build
+RUN python -c "import nltk; nltk.download('vader_lexicon'); nltk.download('punkt')"
 
 # Copy application code
 COPY . .
 
-# Expose port
+# Create non-root user
+RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+USER appuser
+
 EXPOSE 8000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=30s --start-period=20s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
-
-# Run the application
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

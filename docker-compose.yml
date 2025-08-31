@@ -1,43 +1,62 @@
 version: '3.8'
 
 services:
+  db:
+    image: postgres:13
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=sentiment_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
   backend:
     build: ./backend
-    container_name: tweet-sentiment-analyzer-backend-1
     ports:
       - "8000:8000"
-    networks:
-      - sentiment-network
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@db:5432/sentiment_db
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 10s
       timeout: 5s
-      retries: 5
-      start_period: 10s
+      retries: 10
+      start_period: 40s
+    networks:
+      - app-network
+    command: bash -c "while !</dev/tcp/db/5432; do sleep 1; done; uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
 
   frontend:
     build: ./frontend
-    container_name: tweet-sentiment-analyzer-frontend-1
     ports:
-      - "8501:8501" # Streamlit's default port
-    networks:
-      - sentiment-network
+      - "8501:8501"
     environment:
-      # This is the crucial line that tells the Streamlit container
-      # how to find the backend container on Docker's internal network.
       - BACKEND_URL=http://backend:8000
+      - STREAMLIT_SERVER_ADDRESS=0.0.0.0
     depends_on:
       backend:
         condition: service_healthy
-    healthcheck:
-      # This is the reliable way to check if Streamlit is running.
-      # We check the main page instead of the unreliable _stcore endpoint.
-      test: ["CMD", "curl", "-f", "http://localhost:8501"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 15s
+    volumes:
+      - ./frontend:/app
+    networks:
+      - app-network
+
+volumes:
+  postgres_data:
 
 networks:
-  sentiment-network:
+  app-network:
     driver: bridge
