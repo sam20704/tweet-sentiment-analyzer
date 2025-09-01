@@ -26,7 +26,6 @@ def create_session():
     return session
 
 def get_backend_url():
-    # Always return localhost for browser, NOT Docker's internal name
     return "http://localhost:8000"
 
 session = create_session()
@@ -125,6 +124,15 @@ if "tweet_text" not in st.session_state:
 if "result" not in st.session_state:
     st.session_state["result"] = None
 
+# ---- Session-safe callback functions ----
+def set_example(example_text):
+    st.session_state["tweet_text"] = example_text
+    st.session_state["result"] = None
+
+def clear_inputs():
+    st.session_state["tweet_text"] = ""
+    st.session_state["result"] = None
+
 def main():
     # SIDEBAR
     with st.sidebar:
@@ -145,7 +153,6 @@ def main():
         else:
             st.error("❌ Backend Service: Offline")
             st.info(f"Backend URL: {BACKEND_URL}")
-        # Robust debug info with "copy" and browser-friendly URL
         with st.expander("🔍 Debug Info"):
             debug_lines = [
                 f"Backend URL: {BACKEND_URL}",
@@ -196,12 +203,9 @@ def main():
         with col_btn1:
             analyze_btn = st.button("🔍 Analyze Sentiment", type="primary", disabled=not backend_status)
         with col_btn2:
-            clear_btn = st.button("🗑️ Clear")
+            clear_btn = st.button("🗑️ Clear", on_click=clear_inputs)
 
-        if clear_btn:
-            st.session_state["tweet_text"] = ""
-            st.session_state["result"] = None
-
+        # Only analyze if asked
         if analyze_btn:
             if not backend_status:
                 st.error("⚠️ Cannot analyze - Backend service is offline!")
@@ -222,9 +226,12 @@ def main():
             "Traffic is terrible. Going to be late for work again. 😤"
         ]
         for i, example in enumerate(examples):
-            if st.button(f"Example {i+1}", key=f"example_{i}"):
-                st.session_state["tweet_text"] = example
-                st.session_state["result"] = None  # Clear result
+            st.button(
+                f"Example {i+1}",
+                key=f"example_{i}",
+                on_click=set_example,
+                args=(example,)
+            )
 
     if st.session_state.get("result"):
         result = st.session_state["result"]
