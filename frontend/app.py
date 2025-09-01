@@ -26,7 +26,7 @@ def create_session():
     return session
 
 def get_backend_url():
-    return "http://localhost:8000"
+    return os.getenv('BACKEND_URL', 'http://backend:8000')
 
 session = create_session()
 BACKEND_URL = get_backend_url()
